@@ -1,1 +1,4 @@
 BerryNet/
+*.swp
+*.pyc
+
