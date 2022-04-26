@@ -1,4 +1,5 @@
 BerryNet/
+venv/
 *.swp
 *.pyc
 
