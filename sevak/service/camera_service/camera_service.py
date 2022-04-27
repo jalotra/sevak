@@ -6,7 +6,7 @@ import argparse
 import time
 import cv2
 
-from .interface.py import CameraInterface
+from sevak.service.camera_service.interface.py import CameraInterface
 from sevak.agents import Communicator
 from sevak.loggers import Logger
 
@@ -20,13 +20,16 @@ class CameraService(CameraInterface):
             raise Exception(f"Can't open the camera idx {camera_idx}")
     
     # Retry might be the case that the stream has died
-    def retry(self, camera_idx) -> None:
+    def retry(self, camera_idx) -> bool:
         if not self.capture or self.capture.isOpened():
             # Wait for a moment before sending a new VideoCapture object.
+            self.capture.release()
             time.sleep(1)
             capture = cv2.VideoCapture(camera_idx)
-        # Set in-place
-        self.capture = capture
+            # Set in-place
+            self.capture = capture
+        
+        return self.capture and self.capture.isOpened()
 
     def get_fps(self):
         return self.capture(cv2.CAP_PROP_FPS)
@@ -46,7 +49,8 @@ class CameraService(CameraInterface):
     def get_frame(self):
         ret, frame = self.capture.read()
         if not ret:
-            raise Exception("ret is {ret}. Can't take an image").
+            Logger.log("get_frame doesn't work right now. Maybe retry capturing image.")
+            return None
         return frame
 
     # Takes a whole stream and returns a Stream Object if that is possible.
@@ -65,7 +69,8 @@ class CameraService(CameraInterface):
                 if time.perf_counter() - self.time_start < self.timeout:
                     ret, frame =  self.video_stream.read() 
                     if not ret:
-                        raise Exception("ret is {ret}. Can't take an image").
+                        Logger.log("get_frame doesn't work right now. Maybe retry capturing image.")
+                        return None
                     return frame
                 else:
                     raise StopIteration
@@ -124,6 +129,11 @@ def main():
     out_fps = args['fps']
     if args.get("type") == "single_image":
         frame = camera_service.get_frame()
+        if frame is None:
+            working_now = camera_service.retry()
+            if not working_now:
+                Logger.log("Retry failed.")
+                raise Exception("Camera output isn't working.")
         retval, jpg_bytes = cv2.imencode(".jpg", frame)
         mqtt_payload = utils.serialize_jpg(jpg_bytes)
         comm_agent.send(args.get("topic"), mqtt_payload)
@@ -145,7 +155,15 @@ def main():
         iter_stream = iter(stream_object)
         counter = 0
         while True:
-            frame = next(iter_stream)
+            try:
+                frame = next(iter_stream)
+                if frame is None:
+                    working_now = camera_service.retry()
+                    if not working_now:
+                        Logger.log("Retry failed.")
+                        raise Exception("Camera output isn't working.")
+            except StopIteration:
+                break
             counter += 1
             if counter == wait_frames:
                 counter = 1
