@@ -6,21 +6,23 @@ import argparse
 import time
 import cv2
 
-from sevak.service.camera_service.interface.py import CameraInterface
-from sevak.agents import Communicator
-from sevak.loggers import Logger
+
+from .interface import CameraInterface
+from agents.communicator import Communicator
+from loggers.logger import Logger
+from collections import OrderedDict
 
 class CameraService(CameraInterface):
     # Tries to load a VideoCapture object 
     # If that fails : raises Exception
-    def __init__(self, camera_idx = 0 : int):
+    def __init__(self, camera_idx : int = -1):
         assert isinstance(camera_idx, int)
         self.capture = cv2.VideoCapture(camera_idx)
         if not self.capture or not self.capture.isOpened():
             raise Exception(f"Can't open the camera idx {camera_idx}")
     
     # Retry might be the case that the stream has died
-    def retry(self, camera_idx) -> bool:
+    def retry(self, camera_idx : int = 0) -> bool:
         if not self.capture or self.capture.isOpened():
             # Wait for a moment before sending a new VideoCapture object.
             self.capture.release()
@@ -40,7 +42,8 @@ class CameraService(CameraInterface):
         frames_taken = 0
         frames_taken_success = 0
         while time.perf_counter() - time_start < 1:
-            frames_taken += (got_frame = self.captue.read())
+            got_frame = self.captue.read()
+            frames_taken += got_frame
             frames_taken_success += got_frame
         
         Logger.log("Warmup() complete : {frames_taken_success} frames taken out of {frames_taken} during warmup.")
@@ -111,24 +114,24 @@ def parse_args():
 
 def main():
     args = parse_args()
-    if args['debug']:
-        logger.setLevel(logging.DEBUG)
-    else:
-        logger.setLevel(logging.INFO)
 
-    comm_agent = Communicator(comm_config, debug=True)
-    comm_config = {
+    comm_config = OrderedDict({
         'subscribe': {},
         'broker': {
             'address': args['broker_ip'],
             'port': args['broker_port']
         }
-    }
+    })
+    comm_agent = Communicator(comm_config)
+    
     camera_service = CameraService(camera_idx = 0)
+
+    print(camera_service)
     
     out_fps = args['fps']
     if args.get("type") == "single_image":
         frame = camera_service.get_frame()
+        print(frame)
         if frame is None:
             working_now = camera_service.retry()
             if not working_now:
@@ -173,8 +176,8 @@ def main():
                 comm_agent.send(args.get("topic"), mqtt_payload)
 
     else:
-        raise NotImplementedError("{args.get("type")} is not supported right now. Try help.")
+        raise NotImplementedError(f"{args.get('type')} is not supported right now. Try help.")
 
 
-if __name__ "__main__":
+if __name__ == "__main__":
     main() 
