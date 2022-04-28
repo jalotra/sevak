@@ -23,4 +23,8 @@ PRD:
 - Image on Demand
 - On Horizon : Temperature Sensor, more sensors here, how to package the hardware and make it accessible in practical applications. 
 
+# Want-to learn stuff ? 
+- [MQTT Protocol](https://www.hivemq.com/mqtt-essentials/)
+- [How to stream video and stuff](https://github.com/krzemienski/awesome-video)
+
 
