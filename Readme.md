@@ -25,6 +25,7 @@ PRD:
 
 # Want-to learn stuff ? 
 - [MQTT Protocol](https://www.hivemq.com/mqtt-essentials/)
+- [Paho MQTT Documentation](https://www.eclipse.org/paho/index.php?page=clients/python/docs/index.php)
 - [How to stream video and stuff](https://github.com/krzemienski/awesome-video)
 
 
