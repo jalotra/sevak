@@ -8,21 +8,6 @@ import paho.mqtt.publish as mqtt_publish
 def PrintHelper(func_name, line_number : int) -> str :
     return f"on func {func_name} and line {line_number} : "
 
-# How does comm_config look like ? 
-'''
-comm_config = {
-    "sub_topics" : [list of possible topics to subscribe to], 
-    "subbed_topics" : {
-        "subbed_topic_one" : func_one, 
-        "subbed_topic_two" : func_two
-    }
-    "broker" : {
-        "ip" : some_IPV4_address_here, 
-        "port" : some port >= 10000 here
-    }
-}
-'''
-
 # Subscribe to some topic : topic
 def on_connect(comm_obj, userdata, flags, rc):
     print(PrintHelper(on_connect, 13) + f"Subbed to some topic : {topic} with return code {rc}")    
@@ -57,10 +42,11 @@ class Communicator:
         self.client.loop_stop()
     
     def send_message_to_broker(self, topic, payload):
+        print(self.comm_config.get("broker").get("ip"), self.comm_config.get("broker").get("port"))
         mqtt_publish.single(
             topic = topic,
             payload = payload, 
             qos = 0, 
-            hostname= self.comm_config.broker.get("ip"),
-            port = self.comm_config.broker.get("port")
+            hostname = self.comm_config.get("broker").get("ip"),
+            port = self.comm_config.get("broker").get("port")
         )

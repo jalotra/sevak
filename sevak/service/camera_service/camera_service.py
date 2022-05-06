@@ -11,6 +11,7 @@ from .interface import CameraInterface
 from agents.communicator import Communicator
 from loggers.logger import Logger
 from collections import OrderedDict
+from utils.serialise_deserialise import SerialiseDeserialise
 
 class CameraService(CameraInterface):
     # Tries to load a VideoCapture object 
@@ -34,7 +35,7 @@ class CameraService(CameraInterface):
         return self.capture and self.capture.isOpened()
 
     def get_fps(self):
-        return self.capture(cv2.CAP_PROP_FPS)
+        return self.capture.get(cv2.CAP_PROP_FPS)
     
     # Warmup camera for about 1 second.
     def warmup(self):
@@ -58,26 +59,30 @@ class CameraService(CameraInterface):
 
     # Takes a whole stream and returns a Stream Object if that is possible.
     def get_stream(self, timeout = 60):
-        class StreamObject():
-            def __init__(self, video_stream):
-                self.timeout = timeout
-                self.time_start = time.perf_counter()
-                self.video_stream = video_stream
+        class StreamObject:
+            def __init__(other, video_stream):
+                other.timeout = timeout
+                other.time_start = time.perf_counter()
+                other.video_stream = video_stream
 
-            def __init__(self):
-                self.frames_taken = 0
-                return self
+            def __iter__(other):
+                other.frames_taken = 0
+                return other
             
-            def __next__(self):
-                if time.perf_counter() - self.time_start < self.timeout:
-                    ret, frame =  self.video_stream.read() 
+            def __next__(other):
+                if time.perf_counter() - other.time_start < other.timeout:
+                    ret, frame =  other.video_stream.read() 
                     if not ret:
                         Logger.log("get_frame doesn't work right now. Maybe retry capturing image.")
                         return None
+                    other.frames_taken += 1
                     return frame
                 else:
+                    print(f"Total Frames taken : {other.frames_taken}")
                     raise StopIteration
         
+        # New to Inner Classes in Python ? 
+        # Doc : https://www.datacamp.com/tutorial/inner-classes-python
         return StreamObject(self.capture)
 
 def parse_args():
@@ -105,8 +110,8 @@ def parse_args():
         help='MQTT broker port.'
     )
     ap.add_argument('--topic',
-        default='data/rgbimage',
-        help='The topic to send the captured frames.'
+        default='data/get_image/rgbimage',
+        help='The topic to send the captured frames, see more in agents/__init__.py.'
     )
 
     return vars(ap.parse_args())
@@ -114,11 +119,12 @@ def parse_args():
 
 def main():
     args = parse_args()
-
+    print(args)
+    
     comm_config = OrderedDict({
         'subscribe': {},
         'broker': {
-            'address': args['broker_ip'],
+            'ip': args['broker_ip'],
             'port': args['broker_port']
         }
     })
@@ -131,15 +137,14 @@ def main():
     out_fps = args['fps']
     if args.get("type") == "single_image":
         frame = camera_service.get_frame()
-        print(frame)
         if frame is None:
             working_now = camera_service.retry()
             if not working_now:
                 Logger.log("Retry failed.")
                 raise Exception("Camera output isn't working.")
         retval, jpg_bytes = cv2.imencode(".jpg", frame)
-        mqtt_payload = utils.serialize_jpg(jpg_bytes)
-        comm_agent.send(args.get("topic"), mqtt_payload)
+        mqtt_payload = SerialiseDeserialise.serialise_jpg(jpg_bytes)
+        comm_agent.send_message_to_broker(args.get("topic"), mqtt_payload)
 
     elif args.get("type") == "stream":
         cam_fps = camera_service.get_fps()
@@ -172,8 +177,8 @@ def main():
                 counter = 1
                 # Now you have wasted wait_frames - 1, you can send a new frame to MQTT broker.
                 retval, jpg_bytes = cv2.imencode(".jpg", frame)
-                mqtt_payload = utils.serialize_jpg(jpg_bytes)
-                comm_agent.send(args.get("topic"), mqtt_payload)
+                mqtt_payload = SerialiseDeserialise.serialise_jpg(jpg_bytes)
+                comm_agent.send_message_to_broker(args.get("topic"), mqtt_payload)
 
     else:
         raise NotImplementedError(f"{args.get('type')} is not supported right now. Try help.")
