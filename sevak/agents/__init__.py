@@ -2,7 +2,7 @@
 # How does comm_config look like ? 
 '''
 comm_config = {
-    "sub_topics" : [list of possible topics to subscribe to], 
+    "topics" : [list of possible topics to subscribe to], 
     "subbed_topics" : {
         "subbed_topic_one" : func_one, 
         "subbed_topic_two" : func_two

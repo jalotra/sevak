@@ -122,7 +122,7 @@ def main():
     print(args)
     
     comm_config = OrderedDict({
-        'subscribe': {},
+        'sub_topics': {},
         'broker': {
             'ip': args['broker_ip'],
             'port': args['broker_port']
