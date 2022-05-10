@@ -33,8 +33,8 @@ class Communicator:
     
     def run_mqtt_client(self):
         self.client.connect(
-            host = self.comm_config.broker.get("ip"), 
-            port = self.comm_config.broker.get("port")
+            host = self.comm_config["broker"].get("ip"), 
+            port = self.comm_config["broker"].get("port")
         )
         self.client.loop_start()
     

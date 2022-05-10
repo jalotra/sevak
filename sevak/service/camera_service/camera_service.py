@@ -1,16 +1,13 @@
 
 # Objective : This service captures image, stream from a PiCamera and publishes data to the MQTT Broker
 #               Whether you want a image or stream depends over how you use this service.
-
-import argparse
 import time
 import cv2
 
-
 from .interface import CameraInterface
 from agents.communicator import Communicator
+from agents import CreateConfig
 from loggers.logger import Logger
-from collections import OrderedDict
 from utils.serialise_deserialise import SerialiseDeserialise
 
 class CameraService(CameraInterface):
@@ -85,57 +82,11 @@ class CameraService(CameraInterface):
         # Doc : https://www.datacamp.com/tutorial/inner-classes-python
         return StreamObject(self.capture)
 
-def parse_args():
-    ap = argparse.ArgumentParser()
-    ap.add_argument(
-        '--fps',
-        type=float,
-        default=1,
-        help='Frame per second in streaming mode. (default: 1)'
-    )
-    ap.add_argument(
-        '--broker-ip',
-        default='localhost',
-        help='MQTT broker IP.'
-    )
-    ap.add_argument(
-        '--type',
-        default='single_image',
-        help='Possible Options are "single_image" or "stream". I guess the names are good enough for you.'
-    )
-    ap.add_argument(
-        '--broker-port',
-        default=1883,
-        type=int,
-        help='MQTT broker port.'
-    )
-    ap.add_argument('--topic',
-        default='data/get_image/rgbimage',
-        help='The topic to send the captured frames, see more in agents/__init__.py.'
-    )
 
-    return vars(ap.parse_args())
-
-
-def main():
-    args = parse_args()
-    print(args)
-    
-    comm_config = OrderedDict({
-        'sub_topics': {},
-        'broker': {
-            'ip': args['broker_ip'],
-            'port': args['broker_port']
-        }
-    })
-    comm_agent = Communicator(comm_config)
-    
+if __name__ == "__main__":
     camera_service = CameraService(camera_idx = 0)
-
-    print(camera_service)
-    
-    out_fps = args['fps']
-    if args.get("type") == "single_image":
+    def image_sub(payload : dict):
+        TOPIC = "data/get_frame"
         frame = camera_service.get_frame()
         if frame is None:
             working_now = camera_service.retry()
@@ -143,17 +94,21 @@ def main():
                 Logger.log("Retry failed.")
                 raise Exception("Camera output isn't working.")
         retval, jpg_bytes = cv2.imencode(".jpg", frame)
+        assert retval == True
         mqtt_payload = SerialiseDeserialise.serialise_jpg(jpg_bytes)
-        comm_agent.send_message_to_broker(args.get("topic"), mqtt_payload)
+        comm_agent.send_message_to_broker(TOPIC, mqtt_payload)
 
-    elif args.get("type") == "stream":
+    def stream_sub(payload : dict):
+        DEFAULT_FPS = 10
+        TOPIC = "data/get_stream"
+        out_fps = payload["fps"] if not None else DEFAULT_FPS
         cam_fps = camera_service.get_fps()
         # Suppose out_fps is 30fps and cam_fps is 60fps
         # This means to make out_fps you would have to choose 1 frame out of 2 consecutive frames.
         # Wait frames would be 2
         wait_frames = int(cam_fps / out_fps)
         if cam_fps > 30 or cam_fps < 1:
-            logger.warn(f'Camera FPS is {cam_fps} (>30 or <1). Setting it to 30.')
+            Logger.log(f'Camera FPS is {cam_fps} (>30 or <1). Setting it to 30.')
             cam_fps = 30
         
         # We want 30 seconds of streaming content. 
@@ -178,11 +133,19 @@ def main():
                 # Now you have wasted wait_frames - 1, you can send a new frame to MQTT broker.
                 retval, jpg_bytes = cv2.imencode(".jpg", frame)
                 mqtt_payload = SerialiseDeserialise.serialise_jpg(jpg_bytes)
-                comm_agent.send_message_to_broker(args.get("topic"), mqtt_payload)
-
-    else:
-        raise NotImplementedError(f"{args.get('type')} is not supported right now. Try help.")
-
-
-if __name__ == "__main__":
-    main() 
+                comm_agent.send_message_to_broker(TOPIC, mqtt_payload)
+    
+    comm_config = CreateConfig()
+    topics_functors_map = {
+        "ops/get_frame" : image_sub,
+        "ops/get_stream" : stream_sub
+    }
+    # Add the topics to comm_config
+    for (topic, functor) in topics_functors_map.items():
+        comm_config.add_topic_and_functor(topic, functor)
+    
+    comm_config = comm_config.get_comm_config()
+    comm_agent = Communicator(comm_config)
+    
+    # Finally start this comm_agent
+    comm_agent.run_mqtt_client()

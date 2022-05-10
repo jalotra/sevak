@@ -7,4 +7,4 @@ def get_abs_path():
 
 # Returns config file path : /users/jalotra/XYZ/config.ini
 def get_config_file_path(): 
-    return os.paht.join(get_abs_path(), "config.ini")
+    return os.path.join(get_abs_path(), "config.ini")
