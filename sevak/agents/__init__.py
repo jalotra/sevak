@@ -33,7 +33,6 @@ class CreateConfig:
 
 
     def add_topic_and_functor(self, topic_name : str, topic_functor):
-        print(topic_name, topic_functor)
         assert topic_name is not None and topic_functor is not None
         self.comm_config["subscribed_topics"].append(topic_name)
         self.comm_config["topic_functor_map"][topic_name] = topic_functor

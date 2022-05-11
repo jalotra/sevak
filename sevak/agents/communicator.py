@@ -11,6 +11,10 @@ import paho.mqtt.publish as mqtt_publish
 # Subscribe to some topic : topic
 def on_connect(client , userdata, flags, rc):
     print(f"Connected to broker and the broker returned code : {rc}")
+    # Sub to topics now
+    print(f"Subbed to topics : {' and '.join(userdata['subscribed_topics'])}")
+    for topic in userdata["subscribed_topics"]:
+        client.subscribe(topic)
 
 # Got a message from MQTT server : release to its callback
 def on_message(client, userdata : dict, msg : bytearray):
@@ -39,12 +43,8 @@ class Communicator:
             host = self.comm_config["broker"].get("ip"), 
             port = self.comm_config["broker"].get("port")
         )
-        # Wait for 5 seconds for connection
+        # Wait for 1 seconds for connection
         sleep(1)
-        # Sub to topics after you have made a connection
-        # This one took 5 hrs to solve
-        for topic in self.comm_config["subscribed_topics"]:
-            self.client.subscribe(topic)
         self.client.loop_forever()
     
     def stop_mqtt_client(self):

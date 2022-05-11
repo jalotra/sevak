@@ -89,6 +89,7 @@ if __name__ == "__main__":
     camera_service = CameraService(camera_idx = 0)
     def image_sub(payload : dict):
         PUBLISH_TOPIC = get_config_parser().get("mqtt_topics", "image_data")
+        print(f"Publishing to topic : {PUBLISH_TOPIC}")
         frame = camera_service.get_frame()
         if frame is None:
             working_now = camera_service.retry()
@@ -103,6 +104,7 @@ if __name__ == "__main__":
     def stream_sub(payload : dict):
         DEFAULT_FPS = 10
         PUBLISH_TOPIC = get_config_parser().get("mqtt_topics", "stream_data")
+        print(f"Publishing to topic : {PUBLISH_TOPIC}")
         try:
             out_fps = int(payload["fps"])
         except Exception as e:
