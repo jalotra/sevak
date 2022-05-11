@@ -1,6 +1,7 @@
 
 # Objective : This service captures image, stream from a PiCamera and publishes data to the MQTT Broker
 #               Whether you want a image or stream depends over how you use this service.
+import json
 import time
 import cv2
 
@@ -87,7 +88,6 @@ class CameraService(CameraInterface):
 if __name__ == "__main__":
     camera_service = CameraService(camera_idx = 0)
     def image_sub(payload : dict):
-        print("here")
         PUBLISH_TOPIC = get_config_parser().get("mqtt_topics", "image_data")
         frame = camera_service.get_frame()
         if frame is None:
@@ -98,12 +98,17 @@ if __name__ == "__main__":
         retval, jpg_bytes = cv2.imencode(".jpg", frame)
         assert retval == True
         mqtt_payload = SerialiseDeserialise.serialise_jpg(jpg_bytes)
-        comm_agent.send_message_to_broker(TOPIC, mqtt_payload)
+        comm_agent.send_message_to_broker(PUBLISH_TOPIC, mqtt_payload)
 
     def stream_sub(payload : dict):
         DEFAULT_FPS = 10
         PUBLISH_TOPIC = get_config_parser().get("mqtt_topics", "stream_data")
-        out_fps = payload["fps"] if not None else DEFAULT_FPS
+        try:
+            out_fps = int(payload["fps"])
+        except Exception as e:
+            Logger.log(e)
+            out_fps = DEFAULT_FPS
+
         cam_fps = camera_service.get_fps()
         # Suppose out_fps is 30fps and cam_fps is 60fps
         # This means to make out_fps you would have to choose 1 frame out of 2 consecutive frames.
@@ -135,7 +140,7 @@ if __name__ == "__main__":
                 # Now you have wasted wait_frames - 1, you can send a new frame to MQTT broker.
                 retval, jpg_bytes = cv2.imencode(".jpg", frame)
                 mqtt_payload = SerialiseDeserialise.serialise_jpg(jpg_bytes)
-                comm_agent.send_message_to_broker(TOPIC, mqtt_payload)
+                comm_agent.send_message_to_broker(PUBLISH_TOPIC, mqtt_payload)
     
     comm_config = CreateConfig()
     topics_functors_map = {
@@ -147,9 +152,10 @@ if __name__ == "__main__":
         comm_config.add_topic_and_functor(topic, functor)
     
     comm_config = comm_config.get_comm_config()
-    print(comm_config)
     comm_agent = Communicator(comm_config)
     
     # Finally start this comm_agent
-    print("Starting Comm Agent!")
+    print("Starting Camera Comm Agent!")
     comm_agent.run_mqtt_client()
+
+    # stream_sub({})
