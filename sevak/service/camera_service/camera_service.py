@@ -86,6 +86,7 @@ class CameraService(CameraInterface):
 if __name__ == "__main__":
     camera_service = CameraService(camera_idx = 0)
     def image_sub(payload : dict):
+        print("here")
         TOPIC = "data/get_frame"
         frame = camera_service.get_frame()
         if frame is None:
@@ -145,7 +146,9 @@ if __name__ == "__main__":
         comm_config.add_topic_and_functor(topic, functor)
     
     comm_config = comm_config.get_comm_config()
+    print(comm_config)
     comm_agent = Communicator(comm_config)
     
     # Finally start this comm_agent
+    print("Starting Comm Agent!")
     comm_agent.run_mqtt_client()

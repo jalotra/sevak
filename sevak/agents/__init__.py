@@ -15,14 +15,7 @@ comm_config = {
 '''
 
 # What are the MQTT topics ? 
-# 1. get_image -> data/get_image/rgb_image
-# 2. get_stream => data/get_stream/rgb_image
-# 3. object_detection => ops/object_detection
-# 4. maybe classification => ops/classification
-# 5. more to come now.
-
-from collections import OrderedDict
-from configparser import ConfigParser
+# => See config.ini for more information
 
 class CreateConfig:
     def __init__(self):
@@ -32,10 +25,9 @@ class CreateConfig:
             "broker" : dict()
         }
         # Read broker details from config file in /configs/config.ini
-        from configs.config import get_config_file_path
-        with open(get_config_file_path(), "r") as f:
-            config = ConfigParser()
-            config.read_file(f)
+        from configs import get_config_parser
+        config = get_config_parser()
+
         assert config.has_section("broker")
         self.add_broker_details(config.get("broker", "ip"), int(config.get("broker", "port")))
 
