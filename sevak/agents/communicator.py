@@ -51,6 +51,7 @@ class Communicator:
         self.client.loop_stop()
     
     def send_message_to_broker(self, topic, payload):
+        print(f"Publishing to topic : {topic}")
         mqtt_publish.single(
             topic = topic,
             payload = payload, 
