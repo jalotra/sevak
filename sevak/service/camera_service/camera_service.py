@@ -9,6 +9,7 @@ from agents.communicator import Communicator
 from agents import CreateConfig
 from loggers.logger import Logger
 from utils.serialise_deserialise import SerialiseDeserialise
+from configs import get_config_parser
 
 class CameraService(CameraInterface):
     # Tries to load a VideoCapture object 
@@ -87,7 +88,7 @@ if __name__ == "__main__":
     camera_service = CameraService(camera_idx = 0)
     def image_sub(payload : dict):
         print("here")
-        TOPIC = "data/get_frame"
+        PUBLISH_TOPIC = get_config_parser().get("mqtt_topics", "image_data")
         frame = camera_service.get_frame()
         if frame is None:
             working_now = camera_service.retry()
@@ -101,7 +102,7 @@ if __name__ == "__main__":
 
     def stream_sub(payload : dict):
         DEFAULT_FPS = 10
-        TOPIC = "data/get_stream"
+        PUBLISH_TOPIC = get_config_parser().get("mqtt_topics", "stream_data")
         out_fps = payload["fps"] if not None else DEFAULT_FPS
         cam_fps = camera_service.get_fps()
         # Suppose out_fps is 30fps and cam_fps is 60fps
@@ -138,8 +139,8 @@ if __name__ == "__main__":
     
     comm_config = CreateConfig()
     topics_functors_map = {
-        "ops/get_frame" : image_sub,
-        "ops/get_stream" : stream_sub
+        f'{get_config_parser().get("mqtt_topics", "take_image")}' : image_sub,
+        f'{get_config_parser().get("mqtt_topics", "take_stream")}' : stream_sub
     }
     # Add the topics to comm_config
     for (topic, functor) in topics_functors_map.items():

@@ -27,7 +27,6 @@ class Communicator:
         self.client.on_message = on_message
         self.comm_config = comm_config
         for topic in self.comm_config["subscribed_topics"]:
-            print(topic)
             self.client.subscribe(topic)
     
     def run_mqtt_client(self):
@@ -36,10 +35,9 @@ class Communicator:
             host = self.comm_config["broker"].get("ip"), 
             port = self.comm_config["broker"].get("port")
         )
-        sleep(10)
-        print("Starting Loop!")
-        self.client.loop_start()
-        print("Stopping Loop!")
+        # Wait for 5 seconds for connection
+        sleep(5)
+        self.client.loop_forever()
     
     def stop_mqtt_client(self):
         self.client.loop_stop()
